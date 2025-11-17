@@ -80,7 +80,7 @@ async def redeem_gift(session: AsyncSession, user: User, tier: str) -> tuple[boo
             bonus_cost=gift_cost_bonus,
             xtr_cost=gift_cost_xtr,
             status=GiftStatus.QUEUED.value,
-            payload={\"reason\": \"budget\"},
+            payload={"reason": "budget"},
         )
         session.add(gift)
         await session.flush()
@@ -95,7 +95,7 @@ async def redeem_gift(session: AsyncSession, user: User, tier: str) -> tuple[boo
             bonus_cost=gift_cost_bonus,
             xtr_cost=gift_cost_xtr,
             status=GiftStatus.QUEUED.value,
-            payload={\"reason\": \"treasury_floor\"},
+            payload={"reason": "treasury_floor"},
         )
         session.add(gift)
         await session.flush()
