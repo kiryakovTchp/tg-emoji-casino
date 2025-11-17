@@ -1,0 +1,9 @@
+.git
+__pycache__
+*.pyc
+.env
+.env.*
+.vscode
+.idea
+.mypy_cache
+.pytest_cache
