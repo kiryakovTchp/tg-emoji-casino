@@ -15,32 +15,26 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8000"
+      - "8000:8000"
     command: [ "uvicorn", "apps.bot.main:app", "--host", "0.0.0.0", "--port", "8000" ]
     restart: unless-stopped
+    networks:
+      - default
+      - stack_internal
 
   crash-web:
     build:
       context: apps/crash
       dockerfile: Dockerfile
     ports:
-      - "3000"
+      - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: https://${DOMAIN:-localhost}
       REDIS_URL: redis://redis:6379
     restart: unless-stopped
-
-  nginx:
-    build:
-      context: nginx
-      dockerfile: Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      - bot
-      - crash-web
-    restart: unless-stopped
+    networks:
+      - default
+      - stack_internal
 
   postgres:
     image: postgres:16
@@ -50,21 +44,17 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # Ports not exposed to host for security
-    # ports:
-    #   - "5432:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - default
 
   redis:
     image: redis:7
     command: [ "redis-server", "--save", "60", "1", "--loglevel", "warning" ]
-    # Ports not exposed to host for security
-    # ports:
-    #   - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -72,7 +62,15 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - default
 
 volumes:
   postgres_data:
   redis_data:
+
+
+networks:
+  default:
+  stack_internal:
+    external: true
