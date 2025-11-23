@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Форматируем данные для фронта
-    const history = sessions.map(session => ({
+    const history = sessions.map((session: any) => ({
       id: session.id,
       crashPoint: session.crashPoint,
       createdAt: session.createdAt

@@ -31,7 +31,7 @@ setup_logging(settings.log_level)
 
 database = Database(settings)
 redis = create_redis_pool(settings)
-crash_ws_manager = CrashWebSocketManager(database)
+crash_ws_manager = CrashWebSocketManager(database, redis)
 
 
 def build_dispatcher(name: str) -> Dispatcher:

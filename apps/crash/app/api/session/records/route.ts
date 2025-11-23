@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Форматируем данные для фронта
-    const topRecords = records.map(record => ({
+    const topRecords = records.map((record: any) => ({
       id: record.id,
       username: record.user.username,
       bet: record.bet,

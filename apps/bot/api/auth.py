@@ -13,8 +13,26 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 settings = get_settings()
 
 
-def _select_bot_token() -> str:
-    return settings.bot_token_main or settings.bot_token_test
+def _candidate_bot_tokens() -> list[str]:
+    tokens: list[str] = []
+    if settings.bot_token_main:
+        tokens.append(settings.bot_token_main)
+    if settings.bot_token_test and settings.bot_token_test not in tokens:
+        tokens.append(settings.bot_token_test)
+    return tokens
+
+
+def _verify_init_data(init_data: str) -> dict:
+    last_error: AuthError | None = None
+    for token in _candidate_bot_tokens():
+        try:
+            return verify_telegram_init_data(init_data, token)
+        except AuthError as exc:
+            last_error = exc
+            continue
+    if last_error:
+        raise last_error
+    raise AuthError("Bot tokens are not configured")
 
 
 @router.post("/telegram")
@@ -27,7 +45,7 @@ async def auth_telegram(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing init data")
     init_data = authorization[4:].strip()
     try:
-        payload = verify_telegram_init_data(init_data, _select_bot_token())
+        payload = _verify_init_data(init_data)
     except AuthError as exc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(exc))
 

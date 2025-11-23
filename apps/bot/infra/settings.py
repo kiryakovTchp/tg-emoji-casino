@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -12,13 +16,17 @@ class Settings(BaseSettings):
     app_env: str = Field(default="dev", alias="APP_ENV")
     app_name: str = Field(default="emoji_casino", alias="APP_NAME")
     public_domain: str | None = Field(default=None, alias="PUBLIC_DOMAIN")
-    bot_token_test: str = Field(alias="BOT_TOKEN_TEST")
-    bot_token_main: str = Field(alias="BOT_TOKEN_MAIN")
-    database_url: str = Field(alias="DATABASE_URL")
-    redis_url: str = Field(alias="REDIS_URL")
+    bot_token_test: str = Field(default="", alias="BOT_TOKEN_TEST")
+    bot_token_main: str = Field(default="", alias="BOT_TOKEN_MAIN")
+    telegram_init_ttl: int = Field(default=60, alias="TELEGRAM_INIT_TTL")
+    database_url: str = Field(default="postgresql+asyncpg://postgres:postgres@localhost:5432/casino", alias="DATABASE_URL")
+    postgres_pool_size: int = Field(default=20, alias="POSTGRES_POOL_SIZE")
+    postgres_max_overflow: int = Field(default=10, alias="POSTGRES_MAX_OVERFLOW")
+    postgres_pool_timeout: int = Field(default=30, alias="POSTGRES_POOL_TIMEOUT")
+    redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
-    payment_provider_token: str = Field(alias="PAYMENT_PROVIDER_TOKEN")
-    payments_enabled: bool = Field(default=True, alias="PAYMENTS_ENABLED")
+    payment_provider_token: str = Field(default="", alias="PAYMENT_PROVIDER_TOKEN")
+    payments_enabled: bool = Field(default=False, alias="PAYMENTS_ENABLED")
     bonus_bet_frac: float = Field(default=0.2, alias="BONUS_BET_FRAC")
     max_bonus_bet_cap: int = Field(default=500, alias="MAX_BONUS_BET_CAP")
     welcome_bonus_coins: int = Field(default=0, alias="WELCOME_BONUS_COINS")
@@ -40,12 +48,21 @@ class Settings(BaseSettings):
     referral_bonus_coins: int = Field(default=0, alias="REFERRAL_BONUS_COINS")
     referral_wr: float = Field(default=1.0, alias="REFERRAL_WR")
     referral_cap: int = Field(default=0, alias="REFERRAL_CAP")
-    crash_jwt_secret: str = Field(alias="CRASH_JWT_SECRET")
+    crash_jwt_secret: str = Field(default="CHANGE_ME_CRASH_SECRET", alias="CRASH_JWT_SECRET")
     crash_jwt_ttl: int = Field(default=600, alias="CRASH_JWT_TTL")
     crash_bet_min: int = Field(default=10, alias="CRASH_BET_MIN")
     crash_bet_max: int = Field(default=100_000, alias="CRASH_BET_MAX")
     crash_bet_duration_ms: int = Field(default=5000, alias="CRASH_BET_DURATION_MS")
     crash_round_duration_ms: int = Field(default=20000, alias="CRASH_ROUND_DURATION_MS")
+
+    @model_validator(mode="after")
+    def _auto_disable_payments(self) -> "Settings":
+        if self.payments_enabled and not self.payment_provider_token:
+            logger.warning(
+                "PAYMENTS_ENABLED is true but PAYMENT_PROVIDER_TOKEN is missing; disabling payments until it is set.",
+            )
+            object.__setattr__(self, "payments_enabled", False)
+        return self
 
     @property
     def bot_tokens(self) -> dict[str, str]:

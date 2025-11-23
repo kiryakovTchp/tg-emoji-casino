@@ -15,7 +15,20 @@ async def get_session(request: Request) -> AsyncSession:
     if database is None:
         raise RuntimeError("Database is not configured")
     async with database.session() as session:
-        yield session
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        else:
+            # Service might have already committed, but that's fine.
+            # We commit again to ensure any uncommitted changes are saved.
+            # If nothing changed, this is a no-op.
+            try:
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
 
 async def get_current_user(

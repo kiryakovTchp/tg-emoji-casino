@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, JSON, Numeric, SmallInteger, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, JSON, Numeric, SmallInteger, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -256,6 +256,13 @@ class CrashRound(Base):
     __tablename__ = "crash_rounds"
     __table_args__ = (
         Index("ix_crash_rounds_status", "status"),
+        Index(
+            "uq_crash_rounds_active",
+            "status",
+            unique=True,
+            sqlite_where=text("status IN ('betting','flying')"),
+            postgresql_where=text("status IN ('betting','flying')"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True, autoincrement=True)
@@ -276,6 +283,7 @@ class CrashBet(Base):
     __tablename__ = "crash_bets"
     __table_args__ = (
         Index("ix_crash_bets_round_user", "round_id", "user_id"),
+        UniqueConstraint("round_id", "user_id", name="uq_crash_bets_round_user"),
     )
 
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True, autoincrement=True)

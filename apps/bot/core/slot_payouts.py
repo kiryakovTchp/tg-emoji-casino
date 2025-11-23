@@ -20,6 +20,10 @@ class SlotPayouts:
     def __init__(self) -> None:
         root = Path(__file__).resolve().parents[3]
         config_path = root / "configs" / "payouts.json"
+        if not config_path.exists():
+            raise FileNotFoundError(
+                f"Slot payouts config is missing at {config_path}. Make sure configs/ is bundled with the deployment.",
+            )
         with config_path.open("r", encoding="utf-8") as f:
             data = json.load(f)
         self._table: dict[int, SlotOutcome] = {

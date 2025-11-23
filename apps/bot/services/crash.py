@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import secrets
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Awaitable, Callable
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,6 +42,37 @@ class CrashSnapshot:
         return data
 
 
+@dataclass
+class AutoCashoutEvent:
+    user_id: int
+    snapshot: CrashSnapshot
+
+
+AutoCashoutCallback = Callable[[AutoCashoutEvent], Awaitable[None]]
+
+
+_auto_cashout_events: list[AutoCashoutEvent] = []
+_auto_cashout_consumer: AutoCashoutCallback | None = None
+
+
+def set_auto_cashout_consumer(callback: AutoCashoutCallback | None) -> None:
+    global _auto_cashout_consumer
+    _auto_cashout_consumer = callback
+
+
+def consume_auto_cashout_events() -> list[AutoCashoutEvent]:
+    events = list(_auto_cashout_events)
+    _auto_cashout_events.clear()
+    return events
+
+
+async def _emit_auto_cashout(event: AutoCashoutEvent) -> None:
+    if _auto_cashout_consumer:
+        await _auto_cashout_consumer(event)
+    else:
+        _auto_cashout_events.append(event)
+
+
 def _now() -> datetime:
     return datetime.now(tz=timezone.utc)
 
@@ -60,7 +93,16 @@ async def _create_round(session: AsyncSession) -> CrashRound:
     seed_hash = hashlib.sha256(seed.encode()).hexdigest()
     bet_end = now + timedelta(milliseconds=settings.crash_bet_duration_ms)
     crash_point = _crash_point_from_seed(seed)
-    crash_at = bet_end + timedelta(milliseconds=settings.crash_round_duration_ms)
+    
+    # Exponential growth: M(t) = e^(k * t)
+    # k = 0.00006 (approx 6% per second, standard-ish)
+    # t = ln(M) / k
+    k = 0.00006
+    duration_ms = int(math.log(crash_point) / k)
+    # Add a small buffer or minimum duration
+    duration_ms = max(1000, duration_ms)
+    
+    crash_at = bet_end + timedelta(milliseconds=duration_ms)
     round_obj = CrashRound(
         status=CrashRoundStatus.BETTING.value,
         seed=seed,
@@ -79,6 +121,7 @@ async def _active_round(session: AsyncSession) -> CrashRound:
     if round_obj is None:
         return await _create_round(session)
     await _sync_round(session, round_obj)
+    await _auto_cashout_bets(session, round_obj)
     if round_obj.status == CrashRoundStatus.CRASHED.value and round_obj.settled_at:
         return await _create_round(session)
     return round_obj
@@ -170,11 +213,14 @@ def _current_multiplier(round_obj: CrashRound) -> float:
         return 1.0
     if round_obj.status == CrashRoundStatus.CRASHED.value:
         return float(round_obj.crash_point or 1.0)
-    total_ms = max(1.0, (round_obj.crash_at - round_obj.bet_ends_at).total_seconds() * 1000)
-    elapsed = max(0.0, (_now() - round_obj.bet_ends_at).total_seconds() * 1000)
-    progress = min(1.0, elapsed / total_ms)
+    
+    elapsed_ms = max(0.0, (_now() - round_obj.bet_ends_at).total_seconds() * 1000)
+    k = 0.00006
+    current = math.exp(k * elapsed_ms)
+    
+    # Cap at crash_point if we somehow exceeded it but haven't processed crash yet
     crash_point = float(round_obj.crash_point or 1.0)
-    return max(1.0, round(1.0 + (crash_point - 1.0) * progress, 4))
+    return min(crash_point, round(current, 4))
 
 
 async def _build_snapshot(session: AsyncSession, round_obj: CrashRound, user_id: int) -> CrashSnapshot:
@@ -198,6 +244,51 @@ def _bet_payload(bet: CrashBet | None) -> dict | None:
         "status": bet.status,
         "cashoutMultiplier": float(bet.cashout_multiplier) if bet.cashout_multiplier else None,
     }
+
+
+async def _finalize_cashout(session: AsyncSession, round_obj: CrashRound, bet: CrashBet, multiplier: float) -> int:
+    payout_total = int((bet.amount_cash + bet.amount_bonus) * multiplier)
+    if payout_total <= 0:
+        raise ValueError("Invalid payout")
+    await add_coins_cash(
+        session,
+        bet.user_id,
+        payout_total,
+        reason="crash_payout",
+        metadata={"round_id": round_obj.id, "multiplier": multiplier},
+    )
+    bet.status = CrashBetStatus.CASHED_OUT.value
+    bet.cashout_multiplier = multiplier
+    bet.payout_cash = payout_total
+    bet.cashed_at = _now()
+    await apply_turnover(session, bet.user_id, "crash", bet.amount_cash + bet.amount_bonus)
+    return payout_total
+
+
+async def _auto_cashout_bets(session: AsyncSession, round_obj: CrashRound) -> None:
+    if round_obj.status != CrashRoundStatus.FLYING.value:
+        return
+    multiplier = _current_multiplier(round_obj)
+    bets = (
+        await session.scalars(
+            select(CrashBet).where(
+                CrashBet.round_id == round_obj.id,
+                CrashBet.status == CrashBetStatus.ACTIVE.value,
+                CrashBet.auto_cashout.is_not(None),
+                CrashBet.auto_cashout <= multiplier,
+            )
+        )
+    ).all()
+    for bet in bets:
+        payout_total = await _finalize_cashout(session, round_obj, bet, multiplier)
+        await session.flush()
+        snapshot = await _build_snapshot(session, round_obj, bet.user_id)
+        snapshot.cashout = {
+            "multiplier": multiplier,
+            "payout": payout_total,
+            "betId": bet.id,
+        }
+        await _emit_auto_cashout(AutoCashoutEvent(user_id=bet.user_id, snapshot=snapshot))
 
 
 async def get_state(session: AsyncSession, user_id: int) -> CrashSnapshot:
@@ -270,6 +361,7 @@ async def place_bet(
     if consumption.cash > 0:
         user.paid_crash_bets_count += 1
     await session.flush()
+    await session.commit()
     snapshot = await _build_snapshot(session, round_obj, user.id)
     snapshot.bet = _bet_payload(bet)
     return snapshot
@@ -283,22 +375,9 @@ async def cashout(session: AsyncSession, *, user: User) -> CrashSnapshot:
     if bet is None:
         raise ValueError("No active bet")
     multiplier = _current_multiplier(round_obj)
-    payout_total = int((bet.amount_cash + bet.amount_bonus) * multiplier)
-    if payout_total <= 0:
-        raise ValueError("Invalid payout")
-    await add_coins_cash(
-        session,
-        user.id,
-        payout_total,
-        reason="crash_payout",
-        metadata={"round_id": round_obj.id, "multiplier": multiplier},
-    )
-    bet.status = CrashBetStatus.CASHED_OUT.value
-    bet.cashout_multiplier = multiplier
-    bet.payout_cash = payout_total
-    bet.cashed_at = _now()
-    await apply_turnover(session, user.id, "crash", bet.amount_cash + bet.amount_bonus)
+    payout_total = await _finalize_cashout(session, round_obj, bet, multiplier)
     await session.flush()
+    await session.commit()
     snapshot = await _build_snapshot(session, round_obj, user.id)
     snapshot.cashout = {
         "multiplier": multiplier,

@@ -1,0 +1,72 @@
+// This is a minimal schema file for build purposes only
+// The actual database is managed by the backend (apps/bot) using SQLAlchemy
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  telegramId    String   @unique
+  username      String?
+  avatarUrl     String?
+  phone         String?
+  phoneVerified Boolean  @default(false)
+  tonWallet     String?
+  balance       Float    @default(0)
+  blocked       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  games             Game[]
+  deposits          Deposit[]
+  withdrawRequests  WithdrawRequest[]
+}
+
+model Game {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  gameSessionId String?
+  gameSession   GameSession? @relation(fields: [gameSessionId], references: [id])
+  bet           Float
+  crashPoint    Float?
+  cashout       Float?
+  profit        Float?
+  status        String
+  createdAt     DateTime @default(now())
+}
+
+model GameSession {
+  id         String   @id @default(cuid())
+  status     String?
+  startTime  DateTime?
+  crashPoint Float?
+  createdAt  DateTime @default(now())
+  
+  games      Game[]
+}
+
+model Deposit {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Float
+  status    String
+  createdAt DateTime @default(now())
+}
+
+model WithdrawRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Float
+  username  String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+}

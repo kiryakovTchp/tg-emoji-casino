@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,
@@ -12,6 +12,7 @@ const nextConfig = {
   experimental: {
     allowedDevOrigins: ['https://46c6-45-144-52-194.ngrok-free.app'],
   },
+  output: "standalone",
   async headers() {
     return [
       {
@@ -20,11 +21,11 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: [
-              "default-src 'self' https://7923-185-135-181-82.ngrok-free.app 'unsafe-eval' 'unsafe-inline'",
+              "default-src 'self' https://7923-185-135-181-82.ngrok-free.app",
               "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com data:",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "style-src 'self' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' ws://localhost:4001 wss://localhost:4001 ws://127.0.0.1:4001 wss://127.0.0.1:4001 https://raw.githubusercontent.com"
+              "connect-src 'self' ws://localhost:8000 wss://localhost:8000 ws://localhost:4001 wss://localhost:4001 ws://127.0.0.1:4001 wss://127.0.0.1:4001 https://raw.githubusercontent.com"
             ].join('; ')
           }
         ]

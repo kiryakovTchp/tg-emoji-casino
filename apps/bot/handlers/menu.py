@@ -239,18 +239,18 @@ def create_router() -> Router:
                 await call.message.answer("Недостаточно средств для ставки")
                 return
 
-        await track_event(
-            session,
-            user_id=user.id,
-            name="slot_spin",
-            props={"bet": bet, "mode": mode, "cash": consumption.cash, "bonus": consumption.bonus},
-        )
+            await track_event(
+                session,
+                user_id=user.id,
+                name="slot_spin",
+                props={"bet": bet, "mode": mode, "cash": consumption.cash, "bonus": consumption.bonus},
+            )
 
-        if consumption.cash > 0:
-            user.paid_spins_count += 1
-            await referral_service.try_activate_referral(session, user.id)
+            if consumption.cash > 0:
+                user.paid_spins_count += 1
+                await referral_service.try_activate_referral(session, user.id)
 
-        dice_message = await call.message.answer_dice(emoji="🎰")
+            dice_message = await call.message.answer_dice(emoji="🎰")
             dice_value = dice_message.dice.value if dice_message.dice else 0
             payout_amount, outcome = payouts.calc_payout(dice_value, bet)
 

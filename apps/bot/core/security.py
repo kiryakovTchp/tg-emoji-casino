@@ -37,6 +37,21 @@ def verify_telegram_init_data(init_data: str, bot_token: str) -> dict[str, Any]:
     if not hmac.compare_digest(calculated_hash, hash_value):
         raise AuthError("Invalid hash")
 
+    auth_date_raw = pairs.get("auth_date")
+    if not auth_date_raw:
+        raise AuthError("Missing auth_date")
+    try:
+        auth_timestamp = int(auth_date_raw)
+    except ValueError as exc:
+        raise AuthError("Invalid auth_date") from exc
+    auth_date = datetime.fromtimestamp(auth_timestamp, tz=timezone.utc)
+    now = datetime.now(tz=timezone.utc)
+    ttl_seconds = max(0, settings.telegram_init_ttl)
+    if ttl_seconds and now - auth_date > timedelta(seconds=ttl_seconds):
+        raise AuthError("Init data expired")
+    if auth_date - now > timedelta(seconds=5):
+        raise AuthError("Invalid auth_date")
+
     user_raw = pairs.get("user")
     if not user_raw:
         raise AuthError("Missing user payload")

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Форматируем данные для фронта
-    const formattedGames = games.map(game => ({
+    const formattedGames = games.map((game: any) => ({
       id: game.id,
       bet: game.bet,
       cashout: game.cashout,

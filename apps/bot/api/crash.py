@@ -17,7 +17,7 @@ class BetRequest(BaseModel):
 
 
 class CashoutRequest(BaseModel):
-    pass
+    percent: int | None = Field(default=None, ge=1, le=100, description="Cashout percentage (optional)")
 
 
 def _as_http_error(error: ValueError) -> HTTPException:
