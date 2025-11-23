@@ -21,11 +21,11 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: [
-              "default-src 'self' https://7923-185-135-181-82.ngrok-free.app",
+              "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: http: data: blob: ws: wss:",
               "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com data:",
-              "style-src 'self' https://fonts.googleapis.com",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' ws://localhost:8000 wss://localhost:8000 ws://localhost:4001 wss://localhost:4001 ws://127.0.0.1:4001 wss://127.0.0.1:4001 https://raw.githubusercontent.com"
+              "connect-src 'self' https: http: ws: wss: data: blob:"
             ].join('; ')
           }
         ]
