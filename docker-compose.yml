@@ -15,7 +15,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "8000"
     command: [ "uvicorn", "apps.bot.main:app", "--host", "0.0.0.0", "--port", "8000" ]
     restart: unless-stopped
 
@@ -24,10 +24,22 @@ services:
       context: apps/crash
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: https://${DOMAIN:-localhost}
       REDIS_URL: redis://redis:6379
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: nginx
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - bot
+      - crash-web
     restart: unless-stopped
 
   postgres:
