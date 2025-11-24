@@ -45,6 +45,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       mockTelegramEnv({
         launchParams: {
           tgWebAppData: initDataRaw,
+          tgWebAppPlatform: 'tdesktop',
+          tgWebAppVersion: '7.2',
           tgWebAppThemeParams: {
             accent_text_color: '#6ab2f2',
             bg_color: '#17212b',
