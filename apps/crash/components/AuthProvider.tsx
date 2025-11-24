@@ -1,4 +1,3 @@
-```typescript
 "use client"
 
 import BlockedUserScreen from "@/components/BlockedUserScreen"
@@ -88,14 +87,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         const response = await fetch(TELEGRAM_AUTH_URL, {
           method: "POST",
           headers: {
-            Authorization: `tma ${ initDataRaw } `,
+            Authorization: `tma ${initDataRaw} `,
           },
         })
 
         if (!response.ok) {
           const errorText = await response.text()
           throw new Error(
-            `Auth failed(${ response.status }): ${ errorText || "unknown" } `
+            `Auth failed(${response.status}): ${errorText || "unknown"} `
           )
         }
 
