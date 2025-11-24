@@ -164,10 +164,16 @@ def create_router() -> Router:
         await call.answer()
         if not call.from_user or not call.message:
             return
-        user = await get_or_create_user(session, call.from_user)
-        state = await load_slot_state(redis, call.from_user.id)
-        wallet = await get_wallet_balance(session, user.id)
-        await render_slot(call.message, wallet, state)
+        try:
+            user = await get_or_create_user(session, call.from_user)
+            state = await load_slot_state(redis, call.from_user.id)
+            wallet = await get_wallet_balance(session, user.id)
+            await render_slot(call.message, wallet, state)
+        except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"Error in slot:open: {error_trace}")
+            await call.message.answer(f"Ошибка при открытии слота: {e}")
 
     @router.callback_query(F.data.startswith("slot:bet:"))
     async def handle_slot_bet(call: CallbackQuery, session: AsyncSession, redis: Redis) -> None:
