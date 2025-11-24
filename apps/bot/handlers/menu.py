@@ -36,9 +36,9 @@ DEFAULT_SLOT_STATE = {"bet": 100, "mode": "cash", "last": None}
 
 def main_menu_keyboard() -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text="🎰 Слот", callback_data="slot:open")],
-        [InlineKeyboardButton(text="🛒 Магазин", callback_data="shop:open")],
-        [InlineKeyboardButton(text="🎁 Подарки", callback_data="gifts:open")],
+        [InlineKeyboardButton(text="🎰 Слот", callback_data="slot:open"), InlineKeyboardButton(text="⚔️ Дуэли", callback_data="duels:open")],
+        [InlineKeyboardButton(text="🚀 Crash", callback_data="crash:open"), InlineKeyboardButton(text="💳 Пополнить баланс", callback_data="balance:topup")],
+        [InlineKeyboardButton(text="🎁 Подарки", callback_data="gifts:open"), InlineKeyboardButton(text="👤 Профиль", callback_data="profile:open")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -153,11 +153,7 @@ def create_router() -> Router:
         if call.message:
             await render_main_menu(call.message)
 
-    @router.callback_query(F.data == "shop:open")
-    async def handle_shop_open(call: CallbackQuery) -> None:
-        await call.answer()
-        if call.message:
-            await call.message.answer("Используйте /buy для открытия магазина")
+
 
     @router.callback_query(F.data == "slot:open")
     async def handle_slot_open(call: CallbackQuery, session: AsyncSession, redis: Redis) -> None:

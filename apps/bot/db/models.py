@@ -301,3 +301,20 @@ class CrashBet(Base):
 
     round: Mapped[CrashRound] = relationship(back_populates="bets")
     user: Mapped[User] = relationship()
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+    __table_args__ = (Index("ix_payments_invoice_payload", "invoice_payload"),)
+
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(PKBigInt, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    pack_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    amount_stars: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount_cash: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    amount_bonus: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    telegram_payment_charge_id: Mapped[str | None] = mapped_column(String(128))
+    invoice_payload: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="WAITING", server_default="WAITING")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
