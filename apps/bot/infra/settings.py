@@ -19,7 +19,8 @@ class Settings(BaseSettings):
     bot_token_test: str = Field(default="", alias="BOT_TOKEN_TEST")
     bot_token_main: str = Field(default="", alias="BOT_TOKEN_MAIN")
     telegram_init_ttl: int = Field(default=60, alias="TELEGRAM_INIT_TTL")
-    database_url: str = Field(default="postgresql+asyncpg://postgres:postgres@localhost:5432/casino", alias="DATABASE_URL")
+    # Hardcoded for debugging
+    database_url: str = Field(default="postgresql+asyncpg://postgres:postgres@postgres:5432/casino", alias="DATABASE_URL")
     postgres_pool_size: int = Field(default=20, alias="POSTGRES_POOL_SIZE")
     postgres_max_overflow: int = Field(default=10, alias="POSTGRES_MAX_OVERFLOW")
     postgres_pool_timeout: int = Field(default=30, alias="POSTGRES_POOL_TIMEOUT")
